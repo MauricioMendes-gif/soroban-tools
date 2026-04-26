@@ -1,1 +1,69 @@
-
+<h3>⚡ Sobre o Flash Anzan Pro</h3><p>Ferramenta profissional para treino de velocidade e projeção em data show. Configure a velocidade, gere o desafio e inicie a contagem. O sistema oculta as configurações em tela cheia para foco total.</p>
+<!--INICIO DO FLASH ANZAN PRO-->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+<style>
+#fa-container{font-family:'Segoe UI',sans-serif;background:#121212;color:#e0e0e0;border:1px solid #333;border-radius:10px;padding:20px;max-width:900px;margin:20px auto;text-align:center}
+#fa-display{background:#000;border:2px solid #444;border-radius:8px;height:250px;display:flex;justify-content:center;align-items:center;margin-bottom:20px;cursor:pointer;user-select:none}
+#fa-number{font-size:6rem;font-weight:bold;font-family:'Courier New',monospace;color:#fff}
+.fa-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;background:#1e1e1e;padding:15px;border-radius:8px;margin-bottom:15px;text-align:left}
+.fa-item{display:flex;flex-direction:column}.fa-label{font-size:.75rem;color:#888;margin-bottom:4px;text-transform:uppercase}
+.fa-input,.fa-select{background:#2c2c2c;border:1px solid #444;color:#fff;padding:8px;border-radius:4px;font-size:1rem;width:100%;box-sizing:border-box}
+.btn{padding:10px 20px;border:none;border-radius:4px;font-weight:bold;cursor:pointer;font-size:.9rem;transition:all .2s;text-transform:uppercase}
+.btn-gen{background:#f39c12;color:#000}.btn-start{background:#27ae60;color:#fff}.btn-full{background:#2980b9;color:#fff}
+.btn:hover{opacity:.9;transform:translateY(-2px)}
+.ans-box{display:flex;justify-content:center;gap:10px;margin-top:10px}
+#fa-input-res{font-size:1.5rem;width:120px;text-align:center;background:#222;border:2px solid #555;color:#fff;padding:5px;border-radius:4px}
+#fa-msg{margin-top:10px;font-weight:bold;font-size:1.2rem;height:1.5em}
+.msg-ok{color:#2ecc71}.msg-err{color:#e74c3c}
+.stats{display:flex;justify-content:space-around;background:#0a0a0a;padding:10px;border-radius:6px;margin-top:15px;border:1px solid #222;font-size:.9rem}
+.stat span{display:block;font-size:1.2rem;font-weight:bold;color:#fff}.stat-lbl{color:#666;font-size:.7rem;text-transform:uppercase}
+.tips{margin-top:10px;font-size:.8rem;color:#555;background:#111;padding:8px;border-radius:4px}
+:fullscreen #fa-container{background:#000;border:none;width:100%;height:100vh;display:flex;flex-direction:column;justify-content:center;max-width:none;margin:0;padding:0}
+:fullscreen .fa-grid{display:none!important}
+:fullscreen #fa-display{height:60vh;border:none;background:transparent;flex-grow:1}
+:fullscreen #fa-number{font-size:25vw}
+:fullscreen .ans-box{position:absolute;top:20px;right:20px}
+:fullscreen .tips{position:absolute;bottom:20px;width:100%;color:#444;background:transparent;border:none}
+:fullscreen .btn-full{display:none}
+</style>
+<div id="fa-container">
+<div id="fa-display" onclick="faGame.touch()"><div id="fa-number">PRONTO</div></div>
+<div class="fa-grid">
+<div class="fa-item"><span class="fa-label">Velocidade (ms)</span><input class="fa-input" id="fa-speed" type="number" value="1000" /></div>
+<div class="fa-item"><span class="fa-label">Qtd. Números</span><input class="fa-input" id="fa-count" max="50" type="number" value="5" /></div>
+<div class="fa-item"><span class="fa-label">Operação</span><select class="fa-select" id="fa-op"><option value="add">Soma (+)</option><option value="sub">Subtração (-)</option><option value="mix">Misto</option></select></div>
+<div class="fa-item" style="align-items: flex-end; display: flex;"><button class="btn btn-full" onclick="faGame.full()">⛶ TELA CHEIA</button></div>
+</div>
+<div style="display: flex; gap: 10px; justify-content: center; margin-bottom: 15px;">
+<button class="btn btn-gen" onclick="faGame.gen()">1. GERAR DESAFIO</button>
+<button class="btn btn-start" disabled="" id="fa-run" onclick="faGame.run()" style="opacity: 0.5;">2. INICIAR CONTAGEM</button>
+</div>
+<div class="ans-box"><input id="fa-input-res" onkeydown="if(event.key==='Enter')faGame.check()" placeholder="?" type="number" /><button class="btn btn-start" onclick="faGame.check()">VERIFICAR</button></div>
+<div id="fa-msg"></div>
+<div class="stats">
+<div class="stat"><span id="fa-ok">0</span><div class="stat-lbl">Acertos</div></div>
+<div class="stat"><span id="fa-err">0</span><div class="stat-lbl">Erros</div></div>
+<div class="stat"><span id="fa-rate">0%</span><div class="stat-lbl">Aproveitamento</div></div>
+<div class="stat"><span id="fa-sp">1000ms</span><div class="stat-lbl">Velocidade Atual</div></div>
+</div>
+<div class="tips">Passo 1: <span class="key">GERAR</span>. Passo 2: <span class="key">INICIAR</span> (ou Espaço). Toque na tela para revelar/reiniciar.</div>
+<div style="color: #444444; font-size: 0.8rem; margin-top: 10px;">💎 <span id="fa-med">0</span></div>
+</div>
+<script>
+const faGame={state:'IDLE',sum:0,seq:[],currentSpeed:1000,stats:{ok:0,err:0},audioCtx:new(window.AudioContext||window.webkitAudioContext)(),
+beep(f=440){if(this.audioCtx.state==='suspended')this.audioCtx.resume();const o=this.audioCtx.createOscillator(),g=this.audioCtx.createGain();o.frequency.value=f;g.gain.setValueAtTime(.05,this.audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(.001,this.audioCtx.currentTime+.1);o.connect(g);g.connect(this.audioCtx.destination);o.start();o.stop(this.audioCtx.currentTime+.1)},
+load(){const s=JSON.parse(localStorage.getItem('fa_stats'))||{ok:0,err:0};this.stats=s;this.ui()},
+save(){localStorage.setItem('fa_stats',JSON.stringify(this.stats));this.ui()},
+ui(){document.getElementById('fa-ok').textContent=this.stats.ok;document.getElementById('fa-err').textContent=this.stats.err;const t=this.stats.ok+this.stats.err;document.getElementById('fa-rate').textContent=(t?Math.round(this.stats.ok/t*100):0)+"%";document.getElementById('fa-sp').textContent=this.currentSpeed+"ms"},
+gen(){if(this.state==='RUNNING')return;this.state='READY';document.getElementById('fa-input-res').value='';document.getElementById('fa-msg').textContent='';document.getElementById('fa-number').style.color='#fff';document.getElementById('fa-number').textContent="PREPARE-SE";this.currentSpeed=parseInt(document.getElementById('fa-speed').value)||1000;const c=parseInt(document.getElementById('fa-count').value),op=document.getElementById('fa-op').value;this.seq=[];let s=0;for(let i=0;i<c;i++){let n=Math.floor(Math.random()*9)+1,sg=1;if(i>0){if(op==='sub')sg=-1;if(op==='mix')sg=Math.random()>.5?1:-1}s+=n*sg;this.seq.push({n,sg})}this.sum=s;this.beep(440);const b=document.getElementById('fa-run');b.disabled=false;b.style.opacity="1";b.textContent="2. INICIAR CONTAGEM (Espaço)";this.ui()},
+run(){if(this.state!=='READY')return;this.state='RUNNING';document.getElementById('fa-run').disabled=true;document.getElementById('fa-run').style.opacity=".5";document.getElementById('fa-run').textContent="EM ANDAMENTO...";let i=0;const el=document.getElementById('fa-number'),sp=this.currentSpeed;const t=setInterval(()=>{if(i>=this.seq.length){clearInterval(t);this.finish();return}const it=this.seq[i];let txt=it.n.toString();if(it.sg===-1)txt="-"+txt;else if(i>0)txt="+"+txt;el.textContent=txt;this.beep(400+i*20);setTimeout(()=>{if(this.state==='RUNNING')el.textContent=""},sp*.6);i++},sp)},
+finish(){this.state='WAITING';document.getElementById('fa-number').textContent="?";document.getElementById('fa-input-res').focus();document.getElementById('fa-run').textContent="2. INICIAR CONTAGEM";this.beep(600)},
+check(){if(this.state!=='WAITING')return;const v=parseInt(document.getElementById('fa-input-res').value),msg=document.getElementById('fa-msg'),el=document.getElementById('fa-number'),auto=document.getElementById('cfg-auto')?.value==='on';this.state='DONE';if(v===this.sum){this.stats.ok++;msg.textContent="CORRETO! ✅";msg.className="msg-ok";el.textContent=this.sum;el.style.color="#2ecc71";this.beep(800);if(auto)this.currentSpeed=Math.max(200,this.currentSpeed-50)}else{this.stats.err++;msg.textContent="ERRADO! Era "+this.sum;msg.className="msg-err";el.textContent=this.sum;el.style.color="#e74c3c";this.beep(150);if(auto)this.currentSpeed=Math.min(3000,this.currentSpeed+100)}this.save()},
+reset(){this.state='IDLE';document.getElementById('fa-number').textContent="PRONTO";document.getElementById('fa-number').style.color="#fff";document.getElementById('fa-msg').textContent="";document.getElementById('fa-input-res').value="";document.getElementById('fa-run').disabled=true;document.getElementById('fa-run').style.opacity=".5";document.getElementById('fa-run').textContent="2. INICIAR CONTAGEM"},
+touch(){if(this.state==='WAITING')this.check();else if(this.state==='DONE'){this.reset();setTimeout(()=>this.gen(),200)}else if(this.state==='IDLE')this.gen();else if(this.state==='READY')this.run()},
+full(){const e=document.getElementById("fa-container");if(!document.fullscreenElement)e.requestFullscreen().catch(()=>{});else document.exitFullscreen()}
+};
+document.addEventListener('keydown',e=>{if(document.activeElement.tagName==='INPUT'&&e.key!=='Enter')return;if(e.code==='Space'){e.preventDefault();faGame.touch()}if(e.code==='Enter')faGame.touch()});
+faGame.load();faGame.ui();
+</script>
+<!--FIM DO FLASH ANZAN PRO-->
